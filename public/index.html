@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Send Email and SMS</title>
+    <title>Email and SMS Sender</title>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
     <style>
@@ -49,17 +49,30 @@
       #editor {
         height: 200px;
       }
+      #emailList ul {
+        list-style: none;
+        padding: 0;
+      }
+      #emailList li {
+        padding: 10px;
+        border-bottom: 1px solid #ccc;
+        cursor: pointer;
+      }
+      #emailContent {
+        display: none;
+      }
     </style>
   </head>
   <body>
     <h1>Email and SMS Sender</h1>
     <!-- Navigation Tabs -->
     <nav>
-      <button id="emailTab" class="active" onclick="showTab('email')">Email</button>
-      <button id="smsTab" onclick="showTab('sms')">SMS</button>
+      <button id="emailTab" class="active" onclick="showTab('email')">Send Email</button>
+      <button id="smsTab" onclick="showTab('sms')">Send SMS</button>
+      <button id="inboxTab" onclick="showTab('inbox')">Inbox</button>
     </nav>
 
-    <!-- Email Form -->
+    <!-- Send Email Form -->
     <div id="email" class="tab active">
       <h2>Send Email</h2>
       <form id="emailForm" enctype="multipart/form-data">
@@ -73,7 +86,7 @@
       </form>
     </div>
 
-    <!-- SMS Form -->
+    <!-- Send SMS Form -->
     <div id="sms" class="tab">
       <h2>Send SMS</h2>
       <form id="smsForm">
@@ -81,6 +94,20 @@
         <textarea name="message" placeholder="Message" required></textarea>
         <button type="submit">Send SMS</button>
       </form>
+    </div>
+
+    <!-- Inbox -->
+    <div id="inbox" class="tab">
+      <h2>Inbox</h2>
+      <button id="refreshInbox">Refresh Inbox</button>
+      <div id="emailList"></div>
+      <div id="emailContent">
+        <button id="backToList">Back</button>
+        <h3 id="emailSubject"></h3>
+        <p><strong>From:</strong> <span id="emailFrom"></span></p>
+        <p><strong>Date:</strong> <span id="emailDate"></span></p>
+        <div id="emailBody"></div>
+      </div>
     </div>
 
     <script>
@@ -95,22 +122,22 @@
         document.getElementById(tabName + 'Tab').classList.add('active');
       }
 
-      // Handle Email Form Submission
+      // Send Email Submission
       document.getElementById('emailForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        formData.append('htmlBody', quill.root.innerHTML); // Add Quill HTML content
+        formData.append('htmlBody', quill.root.innerHTML);
 
         const response = await fetch('/email/send', {
           method: 'POST',
-          body: formData, // Send as multipart/form-data
+          body: formData,
         });
 
         const result = await response.json();
         alert(result.success ? 'Email sent successfully!' : 'Failed to send email: ' + result.error);
       });
 
-      // Handle SMS Form Submission
+      // Send SMS Submission
       document.getElementById('smsForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -127,6 +154,47 @@
         const result = await response.json();
         alert(result.success ? 'SMS sent successfully!' : 'Failed to send SMS: ' + result.error);
       });
+
+      // Fetch Inbox Emails
+      async function fetchInbox() {
+        const response = await fetch('/email/receive');
+        const result = await response.json();
+
+        if (result.success) {
+          const emailList = document.getElementById('emailList');
+          emailList.innerHTML = '<ul>' + result.emails.map((email, index) => `
+            <li onclick="showEmail(${index})">
+              <strong>${email.subject}</strong> - ${email.from} <br>
+              <small>${new Date(email.date).toLocaleString()}</small>
+            </li>
+          `).join('') + '</ul>';
+
+          window.emails = result.emails;
+        } else {
+          alert('Failed to fetch emails: ' + result.error);
+        }
+      }
+
+      // Show Selected Email
+      function showEmail(index) {
+        const email = window.emails[index];
+        document.getElementById('emailList').style.display = 'none';
+        document.getElementById('emailContent').style.display = 'block';
+
+        document.getElementById('emailSubject').innerText = email.subject;
+        document.getElementById('emailFrom').innerText = email.from;
+        document.getElementById('emailDate').innerText = new Date(email.date).toLocaleString();
+        document.getElementById('emailBody').innerHTML = email.html || email.text;
+      }
+
+      // Back to List
+      document.getElementById('backToList').addEventListener('click', () => {
+        document.getElementById('emailList').style.display = 'block';
+        document.getElementById('emailContent').style.display = 'none';
+      });
+
+      document.getElementById('refreshInbox').addEventListener('click', fetchInbox);
+      document.getElementById('inboxTab').addEventListener('click', fetchInbox);
     </script>
   </body>
 </html>
