@@ -172,12 +172,20 @@
       // Initialize Quill Editor for Email Body
       const quill = new Quill('#editor', { theme: 'snow' });
 
+      // Socket.io initialization
+      const socket = io(); // Initialize Socket.IO connection
+
       // Tab Switching Logic
       function showTab(tabName) {
         document.querySelectorAll('.tab').forEach((tab) => tab.classList.remove('active'));
         document.querySelectorAll('nav button').forEach((btn) => btn.classList.remove('active'));
         document.getElementById(tabName).classList.add('active');
         document.getElementById(tabName + 'Tab').classList.add('active');
+
+        // Trigger socket connection when "chat" tab is opened
+        if (tabName === 'chat') {
+          socket.emit('connect-to-chat'); // Emit the event to the server when the user switches to chat tab
+        }
       }
 
       // Send Email Submission
@@ -279,8 +287,6 @@
 
       document.getElementById('refreshInbox').addEventListener('click', fetchInbox);
       document.getElementById('inboxTab').addEventListener('click', fetchInbox);
-
-      const socket = io(); // Initialize Socket.IO connection
 
       // Chat Message Handling
       document.getElementById('sendMessage').addEventListener('click', () => {
