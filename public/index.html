@@ -133,7 +133,7 @@
     <!-- Navigation Tabs -->
     <nav>
       <button id="emailTab" class="active" onclick="showTab('email')">Send Email & Inbox</button>
-      <button id="smsTab" onclick="showTab('sms')">Send SMS</button>
+      <a href="sms.html" id="smsTab">Send SMS & Inbox</a>
       <button id="chatTab" onclick="showTab('chat')">Chat</button>
     </nav>
 
@@ -303,18 +303,26 @@
         e.preventDefault();
         const formData = new FormData(e.target);
 
-        const response = await fetch('/sms/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: formData.get('to'),
-            message: formData.get('message'),
-          }),
-        });
+        try {
+            const response = await fetch('/sms/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: formData.get('to'),
+                message: formData.get('message'),
+            }),
+            });
 
-        const result = await response.json();
-        alert(result.success ? 'SMS sent successfully!' : 'Failed to send SMS: ' + result.error);
-      });
+            const result = await response.json();
+            if (result.success) {
+            alert('SMS sent successfully!');
+            } else {
+            alert('Failed to send SMS: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error sending SMS: ' + error.message);
+        }
+        });
 
       // Chat Message Handling
     //   document.getElementById('sendMessage').addEventListener('click', () => {
@@ -391,7 +399,7 @@
 
     //     chatMessages.appendChild(newMessage);
     //   });
-    socket.on('new-message', (data) => {
+socket.on('new-message', (data) => {
   const chatMessages = document.getElementById('chatMessages');
   const newMessage = document.createElement('li');
 

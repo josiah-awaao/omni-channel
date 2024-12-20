@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMS</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    form, #smsInbox { max-width: 600px; margin: 0 auto; }
+    input, button, textarea { display: block; margin-bottom: 10px; width: 100%; padding: 8px; }
+    #smsInbox { margin-top: 20px; border: 1px solid #ccc; padding: 10px; max-height: 300px; overflow-y: auto; }
+    #smsInbox ul { list-style: none; padding: 0; }
+    #smsInbox li { padding: 10px; border-bottom: 1px solid #ccc; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Send SMS & Inbox</h1>
+  <h2>Send SMS</h2>
+  <form id="smsForm">
+    <input type="text" name="to" placeholder="Phone Number" required />
+    <textarea name="message" placeholder="Message" required></textarea>
+    <button type="submit">Send SMS</button>
+  </form>
+
+  <h2>SMS Inbox</h2>
+  <button id="refreshSmsInbox">Refresh Inbox</button>
+  <div id="smsInbox">
+    <ul id="smsInboxList"></ul>
+  </div>
+
+  <script>
+    // Send SMS
+    document.getElementById('smsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+
+      const response = await fetch('/sms/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: formData.get('to'),
+          message: formData.get('message'),
+        }),
+      });
+
+      const result = await response.json();
+      alert(result.success ? 'SMS sent successfully!' : 'Failed to send SMS: ' + result.error);
+    });
+
+    // Fetch SMS Inbox
+    document.getElementById('refreshSmsInbox').addEventListener('click', async () => {
+      const response = await fetch('/sms/inbox');
+      const result = await response.json();
+
+      if (result.success) {
+        const smsInboxList = document.getElementById('smsInboxList');
+        smsInboxList.innerHTML = result.messages
+          .map(
+            (message) => `
+              <li>
+                <strong>From:</strong> ${message.from}<br>
+                <strong>Message:</strong> ${message.body}<br>
+                <small>${new Date(message.date).toLocaleString()}</small>
+              </li>`
+          )
+          .join('');
+      } else {
+        alert('Failed to fetch SMS inbox: ' + result.error);
+      }
+    });
+  </script>
+</body>
+</html>
