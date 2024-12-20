@@ -1,82 +1,3 @@
-// const express = require('express');
-// const dotenv = require('dotenv');
-// const path = require('path');
-// const emailRoutes = require('./routes/emailRoutes');
-// const smsRoutes = require('./routes/smsRoutes');
-
-// dotenv.config();
-// const app = express();
-
-// // Middleware
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-
-// // Serve UI
-// app.use('/', express.static(path.join(__dirname, 'public')));
-
-// // Routes
-// app.use('/email', emailRoutes);
-// app.use('/sms', smsRoutes);
-
-// // Start Server
-// const PORT = process.env.PORT || 3000;
-// app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-// const express = require('express');
-// const dotenv = require('dotenv');
-// const path = require('path');
-// const emailRoutes = require('./routes/emailRoutes');
-// const smsRoutes = require('./routes/smsRoutes');
-// const http = require('http');
-// const socketIo = require('socket.io');
-// const { startChatSession, handleChatMessage, handleFileMessage, handleDisconnect } = require('./controllers/chatController');
-
-// dotenv.config();
-// const app = express();
-
-// // Create HTTP server and attach socket.io
-// const server = http.createServer(app);
-// const io = socketIo(server);
-
-// // Middleware
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-
-// // Serve UI
-// app.use('/', express.static(path.join(__dirname, 'public')));
-
-// // Routes for email and SMS
-// app.use('/email', emailRoutes);
-// app.use('/sms', smsRoutes);
-
-// // Socket.IO: Handling connections for chat
-// io.on('connection', (socket) => {
-//   console.log('A user connected:', socket.id);
-
-//   // Start a chat session for the user
-//   startChatSession(socket, io);
-
-//   // Listen for incoming chat messages
-//   socket.on('chat-message', (message) => {
-//     handleChatMessage(socket, message);
-//   });
-
-//   // Listen for file attachments
-//   socket.on('send-file', (fileData) => {
-//     handleFileMessage(socket, fileData);
-//   });
-
-//   // Handle disconnections
-//   socket.on('disconnect', () => {
-//     handleDisconnect(socket, io);
-//   });
-// });
-
-// // Start Server
-// const PORT = process.env.PORT || 3000;
-// server.listen(PORT, () => {
-//   console.log(`Server running on http://localhost:${PORT}`);
-// });
-
 const express = require('express');
 const dotenv = require('dotenv');
 const http = require('http');
@@ -88,6 +9,8 @@ const { connectToChat, sendMessage, sendFile, userDisconnect } = require('./cont
 
 dotenv.config();
 const app = express();
+
+// Create an HTTP server and attach socket.io
 const server = http.createServer(app);
 const io = socketIo(server);
 
@@ -95,30 +18,41 @@ const io = socketIo(server);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve UI
+// Serve the UI
 app.use('/', express.static(path.join(__dirname, 'public')));
 
-// Routes
+// Routes for email and SMS
 app.use('/email', emailRoutes);
 app.use('/sms', smsRoutes);
 
-// Socket.io logic
+// Socket.io: Handling chat connections
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Handle user connection to chat
+  // Start a chat session when a user connects
   connectToChat(socket, io);
 
-  // Listen for incoming messages
-  socket.on('send-message', (message) => sendMessage(socket, message));
+  // Handle incoming chat messages
+  socket.on('send-message', (message) => {
+    console.log('Received message: ', message);
+    sendMessage(socket, message); // sendMessage should broadcast this message to the other user.
+  });
 
-  // Handle file attachments
-  socket.on('send-file', (fileData) => sendFile(socket, fileData));
+  // Handle incoming file attachments
+  socket.on('send-file', (fileData) => {
+    console.log('Received file data');
+    sendFile(socket, fileData); // sendFile should broadcast the file to the other user.
+  });
 
   // Handle user disconnection
-  socket.on('disconnect', () => userDisconnect(socket, io));
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
+    userDisconnect(socket, io); // This will remove the user from the waiting list and notify the other user
+  });
 });
 
 // Start the server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

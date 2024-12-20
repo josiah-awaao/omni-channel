@@ -1,21 +1,22 @@
+// chatController.js
 const { connectUserToChat, sendMessageToChat, handleFileAttachment, handleDisconnect } = require('../services/chatService');
 
-// Connect users to chat
+// Handle connection to chat
 const connectToChat = (socket, io) => {
   connectUserToChat(socket, io);
 };
 
-// Handle sending chat message
+// Handle incoming chat messages
 const sendMessage = (socket, message) => {
   sendMessageToChat(socket, message);
 };
 
-// Handle sending file attachments
+// Handle file attachment messages
 const sendFile = (socket, fileData) => {
   handleFileAttachment(socket, fileData);
 };
 
-// Handle user disconnect
+// Handle user disconnection
 const userDisconnect = (socket, io) => {
   handleDisconnect(socket, io);
 };
