@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Email and SMS Sender</title>
+    <title>Email, SMS, and Chat</title>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="/socket.io/socket.io.js"></script> <!-- Include socket.io -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
     <style>
       body {
@@ -33,6 +34,19 @@
       }
       .tab.active {
         display: block;
+      }
+      .flex-container {
+        display: flex;
+        gap: 20px;
+        justify-content: space-between;
+      }
+      .flex-container > div {
+        flex: 1;
+        min-width: 300px;
+      }
+      .email-list {
+        border-right: 1px solid #ccc;
+        padding-right: 20px;
       }
       form {
         max-width: 600px;
@@ -64,29 +78,76 @@
       #attachmentsList li {
         margin-bottom: 5px;
       }
+      #emailContent {
+        display: none;
+      }
+      .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      /* Chat specific styles */
+      #chatWindow {
+        width: 100%;
+        height: 400px;
+        overflow-y: auto;
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #ccc;
+      }
+
+      #chatMessages li {
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+      }
     </style>
   </head>
   <body>
-    <h1>Email and SMS Sender</h1>
+    <h1>Email, SMS, and Chat</h1>
     <!-- Navigation Tabs -->
     <nav>
-      <button id="emailTab" class="active" onclick="showTab('email')">Send Email</button>
+      <button id="emailTab" class="active" onclick="showTab('email')">Send Email & Inbox</button>
       <button id="smsTab" onclick="showTab('sms')">Send SMS</button>
-      <button id="inboxTab" onclick="showTab('inbox')">Inbox</button>
+      <button id="chatTab" onclick="showTab('chat')">Chat</button> <!-- Chat Tab -->
     </nav>
 
-    <!-- Send Email Form -->
+    <!-- Send Email and Inbox Form -->
     <div id="email" class="tab active">
-      <h2>Send Email</h2>
-      <form id="emailForm" enctype="multipart/form-data">
-        <input type="email" name="to" placeholder="To" required />
-        <input type="text" name="cc" placeholder="CC" />
-        <input type="text" name="bcc" placeholder="BCC" />
-        <input type="text" name="subject" placeholder="Subject" required />
-        <div id="editor"></div>
-        <input type="file" name="attachments" multiple />
-        <button type="submit">Send Email</button>
-      </form>
+      <div class="flex-container">
+        <!-- Send Email Form -->
+        <div>
+          <h2>Send Email</h2>
+          <form id="emailForm" enctype="multipart/form-data">
+            <input type="email" name="to" placeholder="To" required />
+            <input type="text" name="cc" placeholder="CC" />
+            <input type="text" name="bcc" placeholder="BCC" />
+            <input type="text" name="subject" placeholder="Subject" required />
+            <div id="editor"></div>
+            <input type="file" name="attachments" multiple />
+            <button type="submit">Send Email</button>
+          </form>
+        </div>
+
+        <!-- Inbox -->
+        <div class="email-list">
+          <h2>Inbox</h2>
+          <button id="refreshInbox">Refresh Inbox</button>
+          <div id="emailList"></div>
+          <div id="emailContent">
+            <button id="backToList">Back</button>
+            <h3 id="emailSubject"></h3>
+            <p><strong>From:</strong> <span id="emailFrom"></span></p>
+            <p><strong>Date:</strong> <span id="emailDate"></span></p>
+            <div id="emailBody"></div>
+            <div id="emailAttachments">
+              <h4>Attachments:</h4>
+              <ul id="attachmentsList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Send SMS Form -->
@@ -99,21 +160,16 @@
       </form>
     </div>
 
-    <!-- Inbox -->
-    <div id="inbox" class="tab">
-      <h2>Inbox</h2>
-      <button id="refreshInbox">Refresh Inbox</button>
-      <div id="emailList"></div>
-      <div id="emailContent">
-        <button id="backToList">Back</button>
-        <h3 id="emailSubject"></h3>
-        <p><strong>From:</strong> <span id="emailFrom"></span></p>
-        <p><strong>Date:</strong> <span id="emailDate"></span></p>
-        <div id="emailBody"></div>
-        <div id="emailAttachments">
-          <h4>Attachments:</h4>
-          <ul id="attachmentsList"></ul>
-        </div>
+    <!-- Chat Tab -->
+    <div id="chat" class="tab">
+      <h2>Chat</h2>
+      <div id="chatWindow">
+        <ul id="chatMessages"></ul>
+      </div>
+      <div>
+        <input type="file" id="fileInput" />
+        <input type="text" id="messageInput" placeholder="Type a message" />
+        <button id="sendMessage">Send</button>
       </div>
     </div>
 
@@ -123,8 +179,11 @@
 
       // Tab Switching Logic
       function showTab(tabName) {
+        // Hide all tabs and remove active class from all buttons
         document.querySelectorAll('.tab').forEach((tab) => tab.classList.remove('active'));
         document.querySelectorAll('nav button').forEach((btn) => btn.classList.remove('active'));
+
+        // Show the active tab and highlight the active button
         document.getElementById(tabName).classList.add('active');
         document.getElementById(tabName + 'Tab').classList.add('active');
       }
@@ -228,6 +287,55 @@
 
       document.getElementById('refreshInbox').addEventListener('click', fetchInbox);
       document.getElementById('inboxTab').addEventListener('click', fetchInbox);
+
+      // Chat-specific code
+
+      const socket = io(); // Initialize Socket.IO connection
+
+      // Chat Message Handling
+      document.getElementById('sendMessage').addEventListener('click', () => {
+        const messageInput = document.getElementById('messageInput');
+        const fileInput = document.getElementById('fileInput');
+
+        // Send message text
+        if (messageInput.value) {
+          socket.emit('chat-message', { message: messageInput.value });
+        }
+
+        // Send file attachment
+        if (fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          const reader = new FileReader();
+
+          reader.onloadend = () => {
+            const fileData = reader.result; // Base64 string
+            socket.emit('send-file', { file: fileData, filename: file.name, contentType: file.type });
+          };
+
+          reader.readAsDataURL(file);
+        }
+
+        messageInput.value = ''; // Clear message input
+        fileInput.value = ''; // Clear file input
+      });
+
+      // Display New Chat Message
+      socket.on('new-message', (data) => {
+        const chatMessages = document.getElementById('chatMessages');
+        const newMessage = document.createElement('li');
+        newMessage.textContent = data.message;
+        chatMessages.appendChild(newMessage);
+      });
+
+      // Display New File Attachment
+      socket.on('new-file', (data) => {
+        const chatMessages = document.getElementById('chatMessages');
+        const fileLink = document.createElement('a');
+        fileLink.href = `data:${data.contentType};base64,${data.file}`;
+        fileLink.download = data.filename;
+        fileLink.textContent = `Download: ${data.filename}`;
+        chatMessages.appendChild(fileLink);
+      });
     </script>
   </body>
 </html>
