@@ -16,10 +16,8 @@ const io = socketIo(server);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve the UI
 app.use('/', express.static(path.join(__dirname, 'public')));
 
-// Routes for email and SMS
 app.use('/email', emailRoutes);
 app.use('/sms', smsRoutes);
 
@@ -27,26 +25,30 @@ app.use('/sms', smsRoutes);
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Start a chat session for the user
   connectToChat(socket, io);
 
-  // Handle incoming chat messages
   socket.on('chat-message', (message) => {
-    sendMessage(socket, message);
+
+    const messageWithSenderInfo = { ...message, isSender: true };
+
+    socket.broadcast.emit('new-message', { ...message, isSender: false });
+
+    socket.emit('new-message', messageWithSenderInfo);
   });
 
-  // Handle incoming file attachments
   socket.on('send-file', (fileData) => {
-    sendFile(socket, fileData);
+    const fileWithSenderInfo = { ...fileData, isSender: true };
+
+    socket.broadcast.emit('new-file', { ...fileData, isSender: false });
+
+    socket.emit('new-file', fileWithSenderInfo);
   });
 
-  // Handle user disconnection
   socket.on('disconnect', () => {
     userDisconnect(socket, io);
   });
 });
 
-// Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
