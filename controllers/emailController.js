@@ -92,7 +92,6 @@ const receiveEmails = (req, res) => {
                   return;
                 }
   
-                // Add parsed email details
                 email = {
                   from: parsed.from.text,
                   subject: parsed.subject,
@@ -103,7 +102,7 @@ const receiveEmails = (req, res) => {
                     filename: att.filename,
                     size: att.size,
                     contentType: att.contentType,
-                    content: att.content.toString('base64'), // Convert attachment to Base64
+                    content: att.content.toString('base64'),
                   })),
                 };
   

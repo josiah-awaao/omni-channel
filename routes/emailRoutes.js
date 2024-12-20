@@ -9,8 +9,7 @@ const upload = multer({
 
 const router = express.Router();
 
-// Routes
-router.post('/send', upload.array('attachments'), sendEmail); // Send Emails
-router.get('/receive', receiveEmails); // Fetch Unread Emails
+router.post('/send', upload.array('attachments'), sendEmail);
+router.get('/receive', receiveEmails);
 
 module.exports = router;

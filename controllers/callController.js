@@ -1,14 +1,14 @@
 const twilio = require('twilio');
 
-// Twilio credentials
 
-// Initialize Twilio client
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
 const client = twilio(accountSid, authToken);
 
-// In-memory storage for call logs
 const callLogs = [];
 
-// Function to make a call
 exports.makeCall = async (req, res) => {
   try {
     const { to } = req.body;
@@ -21,7 +21,7 @@ exports.makeCall = async (req, res) => {
     }
 
     const call = await client.calls.create({
-      url: 'http://demo.twilio.com/docs/voice.xml', // Update with your TwiML URL if needed
+      url: 'http://demo.twilio.com/docs/voice.xml',
       from: twilioPhoneNumber,
       to,
     });
@@ -42,7 +42,28 @@ exports.makeCall = async (req, res) => {
   }
 };
 
-// Function to fetch call logs
 exports.getCallLogs = (req, res) => {
   res.json({ success: true, logs: callLogs });
+};
+
+const incomingCallLogs = [];
+
+exports.getIncomingCallLogs = (req, res) => {
+  res.json({ success: true, logs: incomingCallLogs });
+};
+
+exports.handleIncomingCall = (req, res) => {
+  const { From } = req.body;
+
+  // Add to logs
+  incomingCallLogs.push({
+    from: From,
+    message: 'Incoming call received.',
+    date: new Date().toISOString(),
+  });
+
+  const twiml = new VoiceResponse();
+  twiml.say('Thank you for calling! We will get back to you.');
+  res.type('text/xml');
+  res.send(twiml.toString());
 };

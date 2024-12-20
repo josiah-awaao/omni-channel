@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Call Interaction</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Voice Call Interaction</h1>
+    <button id="answerCall">Answer Call</button>
+    <button id="hangupCall">Hang Up</button>
+    <br />
+    <h2>Automated Responses</h2>
+    <button id="responseWater">Take Your Water</button>
+    <button id="responseVitamins">Drink Your Vitamins</button>
+
+    <script src="https://sdk.twilio.com/js/client/v1.13/twilio.min.js"></script>
+    <script>
+      let device;
+      let currentCall;
+
+      // Fetch the token from your server
+      async function getToken() {
+        const response = await fetch('/twiml/token');
+        const data = await response.json();
+        return data.token;
+      }
+
+      // Initialize Twilio.Device
+      async function setupDevice() {
+        const token = await getToken();
+
+        device = new Twilio.Device(token, {
+          debug: true,
+        });
+
+        // Register event listeners
+        device.on('incoming', (call) => {
+          console.log('Incoming call:', call);
+          currentCall = call;
+
+          // Alert user for the call
+          alert('Incoming call! Click "Answer Call" to accept.');
+        });
+
+        device.on('disconnect', () => {
+          console.log('Call ended.');
+          currentCall = null;
+        });
+
+        device.on('error', (error) => {
+          console.error('Device error:', error.message);
+        });
+      }
+
+      document.getElementById('answerCall').addEventListener('click', () => {
+        if (currentCall) {
+          currentCall.accept();
+          console.log('Call accepted');
+        } else {
+          console.log('No incoming call to answer.');
+        }
+      });
+
+      document.getElementById('hangupCall').addEventListener('click', () => {
+        if (currentCall) {
+          currentCall.reject();
+          console.log('Call rejected');
+        } else if (device) {
+          device.disconnectAll();
+          console.log('All calls disconnected');
+        } else {
+          console.log('No active call to hang up.');
+        }
+      });
+
+      document.getElementById('responseWater').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/twiml/process-input', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ Digits: '1' }),
+            });
+            const result = await response.text();
+            console.log('Server Response:', result);
+        } catch (error) {
+            console.error('Error sending DTMF input:', error.message);
+        }
+        });
+
+        document.getElementById('responseVitamins').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/twiml/process-input', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ Digits: '2' }),
+            });
+            const result = await response.text();
+            console.log('Server Response:', result);
+        } catch (error) {
+            console.error('Error sending DTMF input:', error.message);
+        }
+        });
+
+
+
+      setupDevice();
+    </script>
+  </body>
+</html>

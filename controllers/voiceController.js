@@ -1,39 +1,86 @@
-const { VoiceResponse } = require('twilio').twiml;
+const twilio = require('twilio');
+const AccessToken = twilio.jwt.AccessToken;
+const VoiceGrant = AccessToken.VoiceGrant;
+const VoiceResponse = twilio.twiml.VoiceResponse;
 
-exports.handleIncomingCall = (req, res) => {
-  const twiml = new VoiceResponse();
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const apiKey = process.env.TWILIO_API_KEY;
+const apiSecret = process.env.TWILIO_API_SECRET; 
+const twimlAppSid = process.env.TWILIO_TWIML_ID;
 
-  twiml.say('Hello, test call.');
+exports.generateToken = (req, res) => {
+  const identity = 'web-client'; 
 
-  // Example: Play an audio file
-  // twiml.play('https://api.twilio.com/cowbell.mp3');
+  try {
+    const voiceGrant = new VoiceGrant({
+      outgoingApplicationSid: twimlAppSid,
+      incomingAllow: true,
+    });
 
-  res.type('text/xml');
-  res.send(twiml.toString());
+    const token = new AccessToken(accountSid, apiKey, apiSecret, { identity });
+    token.addGrant(voiceGrant);
+
+    res.json({ token: token.toJwt() });
+  } catch (error) {
+    console.error('Error generating token:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
 };
 
-exports.handleGatherInput = (req, res) => {
-  const twiml = new VoiceResponse();
-  const gather = twiml.gather({ input: 'dtmf', timeout: 5, numDigits: 1 });
+exports.handleIncomingCall = (req, res) => {
+  try {
+    const twiml = new VoiceResponse();
 
-  gather.say('Press 1 for sales. Press 2 for support.');
-  twiml.redirect('/voice/process-input');
+    twiml.say('Hello, how can I assist you today?');
 
-  res.type('text/xml');
-  res.send(twiml.toString());
+    twiml.dial().client('web-client');
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  } catch (error) {
+    console.error('Error handling incoming call:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
 };
 
 exports.processUserInput = (req, res) => {
-  const { Digits } = req.body; // Get user input
+  const { Digits } = req.body;
   const twiml = new VoiceResponse();
 
-  if (Digits === '1') {
-    twiml.say('You selected sales. Connecting you now.');
-  } else if (Digits === '2') {
-    twiml.say('You selected support. Connecting you now.');
-  } else {
-    twiml.say('Invalid input. Goodbye.');
+  console.log('Received DTMF input:', Digits);
+
+  try {
+    if (Digits === '1') {
+      console.log('Responding: Take your water.');
+      twiml.say('Please remember to take your water.');
+    } else if (Digits === '2') {
+      console.log('Responding: Drink your vitamins.');
+      twiml.say('Don\'t forget to drink your vitamins.');
+    } else {
+      console.log('Responding: Invalid input.');
+      twiml.say('Invalid input. Goodbye.');
+    }
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  } catch (error) {
+    console.error('Error processing user input:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
+};
+
+exports.playWaterMessage = (req, res) => {
+  const twiml = new VoiceResponse();
+  twiml.say('Please remember to take your water.');
+
+  res.type('text/xml');
+  res.send(twiml.toString());
+};
+
+exports.playVitaminsMessage = (req, res) => {
+  const twiml = new VoiceResponse();
+  twiml.say('Please remember to drink your vitamins.');
 
   res.type('text/xml');
   res.send(twiml.toString());

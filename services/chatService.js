@@ -1,9 +1,6 @@
-// chatService.js
+const waitingUsers = [];
+const userSockets = {};
 
-const waitingUsers = []; // Queue of waiting users
-const userSockets = {}; // Mapping of user IDs to their socket connections
-
-// Connect user to chat and match with another user
 const connectUserToChat = (socket, io) => {
   waitingUsers.push(socket.id);
   userSockets[socket.id] = socket;
@@ -22,28 +19,22 @@ const connectUserToChat = (socket, io) => {
   }
 };
 
-// Send a message to the other user
 const sendMessageToChat = (socket, message) => {
-  // Send message to the sender and broadcast to the other user
   socket.emit('new-message', message);
   socket.broadcast.emit('new-message', message);
 };
 
-// Handle file attachment
 const handleFileAttachment = (socket, fileData) => {
-  socket.emit('new-file', fileData); // Send to sender
-  socket.broadcast.emit('new-file', fileData); // Broadcast to the other user
+  socket.emit('new-file', fileData);
+  socket.broadcast.emit('new-file', fileData);
 };
 
-// Handle user disconnection
 const handleDisconnect = (socket, io) => {
-  // Remove user from the waiting list and from the userSockets map
   const index = waitingUsers.indexOf(socket.id);
   if (index !== -1) waitingUsers.splice(index, 1);
 
   delete userSockets[socket.id];
 
-  // Notify the other user about the disconnection
   socket.broadcast.emit('disconnected', { message: 'The other user has disconnected.' });
 };
 
