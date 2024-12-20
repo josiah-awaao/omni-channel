@@ -12,6 +12,9 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+const voiceRoutes = require('./routes/voiceRoutes');
+const callRoutes = require('./routes/callRoutes');
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -21,7 +24,9 @@ app.use('/', express.static(path.join(__dirname, 'public')));
 app.use('/email', emailRoutes);
 app.use('/sms', smsRoutes);
 
-// Socket.io: Handling chat connections
+app.use('/', voiceRoutes);
+app.use('/call', callRoutes);
+
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 

@@ -1,14 +1,10 @@
 const twilio = require('twilio');
 
-// Twilio credentials
 
-// Initialize Twilio client
 const client = twilio(accountSid, authToken);
 
-// In-memory storage for SMS inbox (use a database in production)
 const smsInbox = [];
 
-// Function to send SMS
 exports.sendSms = async (req, res) => {
   try {
     const { to, message } = req.body;
@@ -37,7 +33,6 @@ exports.sendSms = async (req, res) => {
   }
 };
 
-// Function to handle incoming SMS
 exports.receiveSms = (req, res) => {
   const { Body, From } = req.body;
 

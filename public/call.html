@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Call</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      form {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      input,
+      button {
+        display: block;
+        margin-bottom: 10px;
+        width: 100%;
+        padding: 8px;
+      }
+      #callLogs {
+        margin-top: 20px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      #callLogs ul {
+        list-style: none;
+        padding: 0;
+      }
+      #callLogs li {
+        padding: 10px;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Make a Call</h1>
+    <form id="callForm">
+      <input type="text" name="to" placeholder="Phone Number to Call" required />
+      <button type="submit">Make Call</button>
+    </form>
+
+    <h2>Call Logs</h2>
+    <div id="callLogs">
+      <ul id="callLogsList"></ul>
+    </div>
+
+    <script>
+      // Make a Call
+      document.getElementById('callForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+
+        const response = await fetch('/call/make', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: formData.get('to'),
+          }),
+        });
+
+        const result = await response.json();
+        alert(result.success ? 'Call initiated successfully!' : 'Failed to initiate call: ' + result.error);
+      });
+
+      // Fetch Call Logs
+      async function fetchCallLogs() {
+        const response = await fetch('/call/logs');
+        const result = await response.json();
+
+        if (result.success) {
+          const callLogsList = document.getElementById('callLogsList');
+          callLogsList.innerHTML = result.logs
+            .map(
+              (log) => `
+              <li>
+                <strong>To:</strong> ${log.to}<br>
+                <strong>Status:</strong> ${log.status}<br>
+                <small>${new Date(log.date).toLocaleString()}</small>
+              </li>`
+            )
+            .join('');
+        } else {
+          alert('Failed to fetch call logs: ' + result.error);
+        }
+      }
+
+      // Load call logs on page load
+      fetchCallLogs();
+    </script>
+  </body>
+</html>
