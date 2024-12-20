@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Email, SMS, and Chat</title>
-    <script src="/socket.io/socket.io.js"></script> <!-- Include socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
     <style>
@@ -92,10 +92,25 @@
         padding: 10px;
         border: 1px solid #ccc;
       }
+      #chatMessages {
+        list-style: none;
+        padding: 0;
+      }
       #chatMessages li {
         padding: 8px;
         margin-bottom: 10px;
         border: 1px solid #ccc;
+        max-width: 60%;
+        border-radius: 5px;
+      }
+      .sender {
+        background-color: #007bff;
+        color: white;
+        margin-left: auto;
+      }
+      .receiver {
+        background-color: #f0f0f0;
+        color: black;
       }
     </style>
   </head>
@@ -105,7 +120,7 @@
     <nav>
       <button id="emailTab" class="active" onclick="showTab('email')">Send Email & Inbox</button>
       <button id="smsTab" onclick="showTab('sms')">Send SMS</button>
-      <button id="chatTab" onclick="showTab('chat')">Chat</button> <!-- Added the Chat Tab -->
+      <button id="chatTab" onclick="showTab('chat')">Chat</button>
     </nav>
 
     <!-- Send Email and Inbox Form -->
@@ -169,59 +184,23 @@
     </div>
 
     <script>
-      // Initialize Quill Editor for Email Body
       const quill = new Quill('#editor', { theme: 'snow' });
+      const socket = io();
+      let isChatInitialized = false;
 
-      // Socket.io initialization
-      const socket = io(); // Initialize Socket.IO connection
-
-      // Tab Switching Logic
       function showTab(tabName) {
         document.querySelectorAll('.tab').forEach((tab) => tab.classList.remove('active'));
         document.querySelectorAll('nav button').forEach((btn) => btn.classList.remove('active'));
         document.getElementById(tabName).classList.add('active');
         document.getElementById(tabName + 'Tab').classList.add('active');
 
-        // Trigger socket connection when "chat" tab is opened
-        if (tabName === 'chat') {
-          socket.emit('connect-to-chat'); // Emit the event to the server when the user switches to chat tab
+        if (tabName === 'chat' && !isChatInitialized) {
+          initializeChat();
+        } else if (tabName === 'email') {
+          fetchInbox();
         }
       }
 
-      // Send Email Submission
-      document.getElementById('emailForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        formData.append('htmlBody', quill.root.innerHTML);
-
-        const response = await fetch('/email/send', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const result = await response.json();
-        alert(result.success ? 'Email sent successfully!' : 'Failed to send email: ' + result.error);
-      });
-
-      // Send SMS Submission
-      document.getElementById('smsForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-
-        const response = await fetch('/sms/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: formData.get('to'),
-            message: formData.get('message'),
-          }),
-        });
-
-        const result = await response.json();
-        alert(result.success ? 'SMS sent successfully!' : 'Failed to send SMS: ' + result.error);
-      });
-
-      // Fetch Inbox Emails
       async function fetchInbox() {
         const response = await fetch('/email/receive');
         const result = await response.json();
@@ -247,7 +226,6 @@
         }
       }
 
-      // Show Selected Email
       function showEmail(index) {
         const email = window.emails[index];
         document.getElementById('emailList').style.display = 'none';
@@ -258,7 +236,6 @@
         document.getElementById('emailDate').innerText = new Date(email.date).toLocaleString();
         document.getElementById('emailBody').innerHTML = email.html || email.text;
 
-        // Display Attachments
         const attachmentsList = document.getElementById('attachmentsList');
         attachmentsList.innerHTML = '';
 
@@ -279,58 +256,101 @@
         }
       }
 
-      // Back to List
       document.getElementById('backToList').addEventListener('click', () => {
         document.getElementById('emailList').style.display = 'block';
         document.getElementById('emailContent').style.display = 'none';
       });
 
       document.getElementById('refreshInbox').addEventListener('click', fetchInbox);
-      document.getElementById('inboxTab').addEventListener('click', fetchInbox);
 
-      // Chat Message Handling
-      document.getElementById('sendMessage').addEventListener('click', () => {
-        const messageInput = document.getElementById('messageInput');
-        const fileInput = document.getElementById('fileInput');
+      function initializeChat() {
+        isChatInitialized = true;
 
-        // Send message text
-        if (messageInput.value) {
-          socket.emit('chat-message', { message: messageInput.value });
-        }
+        socket.on('new-message', (data) => {
+          const chatMessages = document.getElementById('chatMessages');
+          const newMessage = document.createElement('li');
+          newMessage.textContent = data.message;
 
-        // Send file attachment
-        if (fileInput.files.length > 0) {
-          const file = fileInput.files[0];
-          const reader = new FileReader();
+          if (data.isSender) {
+            newMessage.classList.add('sender');
+          } else {
+            newMessage.classList.add('receiver');
+          }
 
-          reader.onloadend = () => {
-            const fileData = reader.result; // Base64 string
-            socket.emit('send-file', { file: fileData, filename: file.name, contentType: file.type });
-          };
+          chatMessages.appendChild(newMessage);
+        });
 
-          reader.readAsDataURL(file);
-        }
+        socket.on('new-file', (data) => {
+          const chatMessages = document.getElementById('chatMessages');
+          const fileLink = document.createElement('a');
+          fileLink.href = `data:${data.contentType};base64,${data.file}`;
+          fileLink.download = data.filename;
+          fileLink.textContent = `Download: ${data.filename}`;
 
-        messageInput.value = ''; // Clear message input
-        fileInput.value = ''; // Clear file input
+          const newFileMessage = document.createElement('li');
+          newFileMessage.classList.add(data.isSender ? 'sender' : 'receiver');
+          newFileMessage.appendChild(fileLink);
+          chatMessages.appendChild(newFileMessage);
+        });
+
+        document.getElementById('sendMessage').addEventListener('click', () => {
+          const messageInput = document.getElementById('messageInput');
+          const fileInput = document.getElementById('fileInput');
+
+          if (messageInput.value) {
+            socket.emit('chat-message', { message: messageInput.value });
+          }
+
+          if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onloadend = () => {
+              const fileData = reader.result;
+              socket.emit('send-file', {
+                file: fileData,
+                filename: file.name,
+                contentType: file.type,
+              });
+            };
+
+            reader.readAsDataURL(file);
+          }
+
+          messageInput.value = '';
+          fileInput.value = '';
+        });
+      }
+
+      document.getElementById('emailForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        formData.append('htmlBody', quill.root.innerHTML);
+
+        const response = await fetch('/email/send', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+        alert(result.success ? 'Email sent successfully!' : 'Failed to send email: ' + result.error);
       });
 
-      // Display New Chat Message
-      socket.on('new-message', (data) => {
-        const chatMessages = document.getElementById('chatMessages');
-        const newMessage = document.createElement('li');
-        newMessage.textContent = data.message;
-        chatMessages.appendChild(newMessage);
-      });
+      document.getElementById('smsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
 
-      // Display New File Attachment
-      socket.on('new-file', (data) => {
-        const chatMessages = document.getElementById('chatMessages');
-        const fileLink = document.createElement('a');
-        fileLink.href = `data:${data.contentType};base64,${data.file}`;
-        fileLink.download = data.filename;
-        fileLink.textContent = `Download: ${data.filename}`;
-        chatMessages.appendChild(fileLink);
+        const response = await fetch('/sms/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: formData.get('to'),
+            message: formData.get('message'),
+          }),
+        });
+
+        const result = await response.json();
+        alert(result.success ? 'SMS sent successfully!' : 'Failed to send SMS: ' + result.error);
       });
     </script>
   </body>
